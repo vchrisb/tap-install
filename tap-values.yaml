@@ -1,0 +1,22 @@
+shared:
+  ingress_domain: "<domain>"
+  # ingress_issuer: letsencrypt-production
+  kubernetes_version: "1.26.5" # Required regardless of distribution when Kubernetes version is 1.25 or later.
+  image_registry:
+    project_path: "europe-west3-docker.pkg.dev/<project>/tap"
+    secret:
+      name: "registry-credentials"
+      namespace: "tap-install"
+
+profile: full
+
+buildservice:
+  exclude_dependencies: true
+
+ceip_policy_disclosed: true # Installation fails if this is not set to true. Not a string.
+
+cnrs:
+  domain_template: "{{.Name}}-{{.Namespace}}.{{.Domain}}"
+
+appsso:
+  domain_template: "{{.Name}}-{{.Namespace}}.{{.Domain}}"

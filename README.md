@@ -1,3 +1,5 @@
+git clone --branch gcp https://github.com/vchrisb/tap-install.git
+
 # init
 update env.sh
 

@@ -1,0 +1,10 @@
+apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+kind: ClusterInstanceClass
+metadata:
+  name: cloudsql-postgres
+spec:
+  description:
+    short: GCP CloudSQL Postgresql database instances
+  provisioner:
+    crossplane:
+      compositeResourceDefinition: xpostgresqlinstances.database.gcp.example.org

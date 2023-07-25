@@ -1,0 +1,30 @@
+apiVersion: carto.run/v1alpha1
+kind: Workload
+metadata:
+  name: spring-petclinic
+  annotations:
+    autoscaling.knative.dev/minScale: "1"
+  labels:
+    apps.tanzu.vmware.com/workload-type: web
+    app.kubernetes.io/part-of: spring-petclinic
+spec:
+  source:
+    git:
+      url: https://github.com/vchrisb/spring-petclinic
+      ref:
+        branch: tap
+  env:
+    - name: SPRING_PROFILES_ACTIVE
+      value: postgres
+  build:
+    env:
+    - name: BP_GRADLE_BUILD_FILE
+      value: skip
+    - name: BP_JVM_VERSION
+      value: "17" 
+  serviceClaims:
+    - name: postgres-db
+      ref:
+        apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+        kind: ClassClaim
+        name: psql-claim-1

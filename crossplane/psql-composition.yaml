@@ -1,0 +1,67 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  labels:
+    provider: gcp
+  name: xpostgresqlinstances.database.gcp.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: database.gcp.example.org/v1alpha1
+    kind: XPostgreSQLInstance
+  publishConnectionDetailsWithStoreConfigRef:
+    name: default
+  resources:
+    - base:
+        apiVersion: sql.gcp.upbound.io/v1beta1
+        kind: DatabaseInstance
+        spec:
+          forProvider:
+            # NOTE: configure this section to your specific requirements
+            databaseVersion: POSTGRES_14
+            region: europe-west3
+            deletionProtection: false
+            settings:
+              - diskSize: 20
+                tier: db-f1-micro
+                diskType: PD_SSD
+                ipConfiguration:
+                - authorizedNetworks:
+                    - value: 0.0.0.0/0 # not recommended for production deployments!
+                  ipv4Enabled: true
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+      connectionDetails:
+        - name: type
+          value: postgresql
+        - name: provider
+          value: gcp
+        - name: database
+          value: postgres
+        - fromConnectionSecretKey: username
+        - fromConnectionSecretKey: password
+        - name: host
+          fromConnectionSecretKey: endpoint
+        - name: port
+          type: FromValue
+          value: "5432"
+      name: cloudsqlinstance
+      patches:
+        - fromFieldPath: metadata.uid
+          toFieldPath: spec.writeConnectionSecretToRef.name
+          transforms:
+            - string:
+                fmt: '%s-postgresql'
+                type: Format
+              type: string
+          type: FromCompositeFieldPath
+        - fromFieldPath: spec.storageGB
+          toFieldPath: spec.forProvider.settings[0].diskSize
+          type: FromCompositeFieldPath
+        - fromFieldPath: "spec.parameters.size"
+          toFieldPath: "spec.forProvider.settings[0].tier"
+          transforms:
+          - type: map
+            map:
+              small: db-f1-micro
+              medium: db-g1-small
+              large: db-custom-16-61440

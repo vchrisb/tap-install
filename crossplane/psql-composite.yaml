@@ -1,0 +1,46 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xpostgresqlinstances.database.gcp.example.org
+spec:
+  claimNames:
+    kind: PostgreSQLInstance
+    plural: postgresqlinstances
+  connectionSecretKeys:
+    - type
+    - provider
+    - host
+    - port
+    - database
+    - username
+    - password
+  group: database.gcp.example.org
+  names:
+    kind: XPostgreSQLInstance
+    plural: xpostgresqlinstances
+  versions:
+    - name: v1alpha1
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                size:
+                  type: string
+                  enum:
+                    - small
+                    - medium
+                    - large
+                  default: small
+                  description: |
+                    The machine size for this PostgreSQLInstance.
+                storage:
+                  type: integer
+                  minimum: 10
+                  default: 15
+                  description: |
+                      The storage size for this PostgreSQLInstance in GB.
+      served: true

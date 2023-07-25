@@ -1,4 +1,6 @@
+```
 git clone --branch gcp https://github.com/vchrisb/tap-install.git
+```
 
 # init
 update env.sh
@@ -17,7 +19,7 @@ gcloud artifacts repositories add-iam-policy-binding $GCP_REPO --location=$GCP_R
 gcloud iam service-accounts keys create tap-sa_key.json --iam-account=tap-sa@$GCP_PROJECT.iam.gserviceaccount.com
 ```
 # Install Tanzu CLI
-(upload tanzu-framework-linux-amd64-v0.28.1.3.tar)
+upload tanzu-framework-linux-amd64-v0.28.1.3.tar to cloud shell
 ```
 mkdir $HOME/tanzu
 tar -xvf $HOME/tanzu-framework-linux-amd64-v0.28.1.3.tar -C $HOME/tanzu
@@ -27,7 +29,7 @@ tanzu plugin install --local $HOME/tanzu/cli all
 ```
 
 # Download Cluster Essentials for Tanzu
-(upload tanzu-cluster-essentials-linux-amd64-1.5.2.tgz)
+upload tanzu-cluster-essentials-linux-amd64-1.5.2.tgz to cloud shell
 ```
 mkdir $HOME/tanzu-cluster-essentials
 tar xfvz $HOME/tanzu-cluster-essentials-linux-amd64-1.5.2.tgz -C $HOME/tanzu-cluster-essentials
@@ -98,7 +100,7 @@ kubectl apply -f letsencrypt-production.yaml
 ```
 
 ## update installation
-uncomment "ingress_issuer:"
+uncomment "ingress_issuer:" in `tap-values.yaml`
 ```
 tanzu package installed update tap -p tap.tanzu.vmware.com -v $TAP_VERSION --values-file ./tap-values.yaml -n tap-install
 ```

@@ -5,13 +5,96 @@ metadata:
     provider: gcp
   name: xpostgresqlinstances.database.gcp.example.org
 spec:
+  writeConnectionSecretsToNamespace: crossplane-system
   compositeTypeRef:
     apiVersion: database.gcp.example.org/v1alpha1
     kind: XPostgreSQLInstance
   publishConnectionDetailsWithStoreConfigRef:
     name: default
   resources:
-    - base:
+    - name: DatabaseUserSecret
+      base:
+        apiVersion: kubernetes.crossplane.io/v1alpha1
+        kind: Object
+        spec:
+          connectionDetails:
+          - apiVersion: v1
+            fieldPath: data.password
+            kind: Secret
+            namespace: "crossplane-system"
+            toConnectionSecretKey: password
+          forProvider:
+            manifest:
+              apiVersion: secretgen.k14s.io/v1alpha1
+              kind: Password
+              metadata:
+                namespace: "crossplane-system"
+              spec:
+                length: 32
+                secretTemplate:
+                  stringData:
+                      password: $(value)
+                  type: connection.crossplane.io/v1alpha1
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+      connectionDetails:
+      - fromConnectionSecretKey: password
+      patches:
+      - fromFieldPath: metadata.uid
+        toFieldPath: spec.forProvider.manifest.metadata.name
+        transforms:
+          - type: string
+            string:
+              fmt: "%s-gcp-password-gen"
+        type: FromCompositeFieldPath
+      - fromFieldPath: metadata.uid
+        toFieldPath: spec.connectionDetails[0].name
+        transforms:
+          - type: string
+            string:
+              fmt: "%s-gcp-password-gen"
+        type: FromCompositeFieldPath
+      - fromFieldPath: metadata.uid
+        toFieldPath: spec.writeConnectionSecretToRef.name
+        transforms:
+          - type: string
+            string:
+              fmt: "%s-gcp-password"
+    - name: DatabaseUser
+      base:
+        apiVersion: sql.gcp.upbound.io/v1beta1
+        kind: User
+        metadata:
+          annotations:
+            crossplane.io/external-name: "user"
+        spec:
+          forProvider:
+            passwordSecretRef:
+              namespace: "crossplane-system"
+              key: "password"
+            instanceSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: metadata.uid
+          toFieldPath: spec.forProvider.passwordSecretRef.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-gcp-password"
+          type: FromCompositeFieldPath
+    - name: Database
+      base:
+        apiVersion: sql.gcp.upbound.io/v1beta1
+        kind: Database
+        metadata:
+          annotations:
+            crossplane.io/external-name: "db"
+        spec:
+          forProvider:
+            instanceSelector:
+              matchControllerRef: true
+    - name: DatabaseInstance
+      base:
         apiVersion: sql.gcp.upbound.io/v1beta1
         kind: DatabaseInstance
         spec:
@@ -36,24 +119,21 @@ spec:
         - name: provider
           value: gcp
         - name: database
-          value: postgres
-        - fromConnectionSecretKey: username
-        - fromConnectionSecretKey: password
+          value: db
+        - name: username
+          value: user
         - name: host
-          fromConnectionSecretKey: endpoint
+          fromConnectionSecretKey: publicIP
         - name: port
           type: FromValue
           value: "5432"
-      name: cloudsqlinstance
       patches:
         - fromFieldPath: metadata.uid
           toFieldPath: spec.writeConnectionSecretToRef.name
           transforms:
-            - string:
-                fmt: '%s-postgresql'
-                type: Format
-              type: string
-          type: FromCompositeFieldPath
+            - type: string
+              string:
+                fmt: "%s-gcp-postgresql"
         - fromFieldPath: spec.storageGB
           toFieldPath: spec.forProvider.settings[0].diskSize
           type: FromCompositeFieldPath

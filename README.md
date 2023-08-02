@@ -19,20 +19,22 @@ gcloud artifacts repositories add-iam-policy-binding $GCP_REPO --location=$GCP_R
 gcloud iam service-accounts keys create tap-sa_key.json --iam-account=tap-sa@$GCP_PROJECT.iam.gserviceaccount.com
 ```
 # Install Tanzu CLI
-upload tanzu-framework-linux-amd64-v0.28.1.3.tar to cloud shell
 ```
-mkdir $HOME/tanzu
-tar -xvf $HOME/tanzu-framework-linux-amd64-v0.28.1.3.tar -C $HOME/tanzu
-
-sudo install $HOME/tanzu/cli/core/v0.28.1/tanzu-core-linux_amd64 /usr/local/bin/tanzu
-tanzu plugin install --local $HOME/tanzu/cli all
+sudo mkdir -p /etc/apt/keyrings/
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gpg
+curl -fsSL https://packages.vmware.com/tools/keys/VMWARE-PACKAGING-GPG-RSA-KEY.pub | sudo gpg --dearmor -o /etc/apt/keyrings/tanzu-archive-keyring.gpg
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/tanzu-archive-keyring.gpg] https://storage.googleapis.com/tanzu-cli-os-packages/apt tanzu-cli-jessie main" | sudo tee /etc/apt/sources.list.d/tanzu.list
+sudo apt-get update
+sudo apt-get install -y tanzu-cli
+tanzu plugin install --group vmware-tap/default:v1.6.1
 ```
 
 # Download Cluster Essentials for Tanzu
-upload tanzu-cluster-essentials-linux-amd64-1.5.2.tgz to cloud shell
+upload tanzu-cluster-essentials-linux-amd64-1.6.0.tgz to cloud shell
 ```
 mkdir $HOME/tanzu-cluster-essentials
-tar xfvz $HOME/tanzu-cluster-essentials-linux-amd64-1.5.2.tgz -C $HOME/tanzu-cluster-essentials
+tar xfvz $HOME/tanzu-cluster-essentials-linux-amd64-1.6.0.tgz -C $HOME/tanzu-cluster-essentials
 
 cd $HOME/tanzu-cluster-essentials
 sudo install $HOME/tanzu-cluster-essentials/imgpkg /usr/local/bin/imgpkg
@@ -42,7 +44,7 @@ sudo install $HOME/tanzu-cluster-essentials/imgpkg /usr/local/bin/imgpkg
 ```
 imgpkg copy -b registry.tanzu.vmware.com/tanzu-cluster-essentials/cluster-essentials-bundle@$CLUSTER_ESSENTIALS_BUNDLE_SHA --to-repo $INSTALL_REGISTRY_HOSTNAME/$INSTALL_REPO/cluster-essentials-bundle --include-non-distributable-layers
 imgpkg copy -b registry.tanzu.vmware.com/tanzu-application-platform/tap-packages:$TAP_VERSION --to-repo $INSTALL_REGISTRY_HOSTNAME/$INSTALL_REPO/tap-packages
-imgpkg copy -b registry.tanzu.vmware.com/tanzu-application-platform/full-tbs-deps-package-repo:$BUILDSERVICE_VERSION --to-repo $INSTALL_REGISTRY_HOSTNAME/$INSTALL_REPO/tbs-full-deps
+imgpkg copy -b registry.tanzu.vmware.com/tanzu-application-platform/full-deps-package-repo:$TAP_VERSION --to-repo $INSTALL_REGISTRY_HOSTNAME/$INSTALL_REPO/full-deps-package-repo
 ```
 
 # Install Cluster Essentials for Tanzu
@@ -76,10 +78,9 @@ tanzu package repository get tanzu-tap-repository --namespace tap-install
 tanzu package available list tap.tanzu.vmware.com --namespace tap-install
 tanzu package install tap -p tap.tanzu.vmware.com -v $TAP_VERSION --values-file ./tap-values.yaml -n tap-install
 
-tanzu package available list buildservice.tanzu.vmware.com --namespace tap-install
-tanzu package repository add tbs-full-deps-repository --url ${INSTALL_REGISTRY_HOSTNAME}/${INSTALL_REPO}/tbs-full-deps:$BUILDSERVICE_VERSION --namespace tap-install
-tanzu package repository get tbs-full-deps-repository --namespace tap-install
-tanzu package install full-tbs-deps -p full-tbs-deps.tanzu.vmware.com -v $BUILDSERVICE_VERSION -n tap-install
+tanzu package repository add full-deps-repository --url $INSTALL_REGISTRY_HOSTNAME/$INSTALL_REPO/full-deps-package-repo:$TAP_VERSION --namespace tap-install
+tanzu package repository get full-deps-repository --namespace tap-install
+tanzu package install full-deps -p full-deps.buildservice.tanzu.vmware.com -v "> 0.0.0" --values-file ./tap-values.yaml --namespace tap-install
 
 kubectl get pkgi -n tap-install
 
@@ -131,4 +132,28 @@ kubectl apply -f crossplane/psql-composite.yaml
 kubectl apply -f crossplane/psql-clusterInstanceClass.yaml
 
 tanzu service class-claim create psql-claim-2 --class cloudsql-postgres
+```
+
+# upgrade from TAP 1.5.3
+
+Release notes: https://docs.vmware.com/en/VMware-Tanzu-Application-Platform/1.6/tap/release-notes.html
+
+* Install Tanzu CLI
+* Download Cluster Essentials for Tanzu
+* relocate images
+* Install Cluster Essentials for Tanzu
+* -> update tap-values.yaml
+
+
+```
+tanzu package repository add tanzu-tap-repository --url ${INSTALL_REGISTRY_HOSTNAME}/${INSTALL_REPO}/tap-packages:$TAP_VERSION --namespace tap-install
+tanzu package installed update tap -p tap.tanzu.vmware.com -v $TAP_VERSION --values-file ./tap-values.yaml -n tap-install
+```
+
+(full-tbs-deb package name is changing with 1.6.1)
+``` 
+tanzu package installed delete full-tbs-deps -n tap-install
+tanzu package repository delete tbs-full-deps-repository -n tap-install
+tanzu package repository add full-deps-repository --url $INSTALL_REGISTRY_HOSTNAME/$INSTALL_REPO/full-deps-package-repo:$TAP_VERSION --namespace tap-install
+tanzu package install full-deps -p full-deps.buildservice.tanzu.vmware.com -v "> 0.0.0" --values-file ./tap-values.yaml --namespace tap-install
 ```

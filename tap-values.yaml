@@ -20,3 +20,8 @@ cnrs:
 
 appsso:
   domain_template: "{{.Name}}-{{.Namespace}}.{{.Domain}}"
+
+tap_gui:
+  app_config:
+    auth:
+      allowGuestAccess: true  # Allows unauthenticated users to log in to your portal. If you deactivate it, configure an alternative auth provider.
